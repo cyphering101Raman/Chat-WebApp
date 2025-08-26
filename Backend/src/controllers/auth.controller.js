@@ -35,11 +35,29 @@ const signup = asyncHandler(async(req, res)=>{
 })
 
 const login = asyncHandler(async(req, res)=>{
+  const {email, password} = req.body
 
+  if(!email || !password) throw new ApiError(400, "All fields are required");
+
+  const user = await User.findOne({email})
+  if(!user) throw new ApiError(401, "Invalid credentials");
+
+  const isPasswordCorrect = await user.isPasswordValid(password);
+  if(!isPasswordCorrect) throw new ApiError(401, "Invalid credentials");
+
+  const loggedinUser = await User.findById(user._id).select("-password");
+
+  const token = jwt.sign({_id: user._id}, process.env.JWT_SECRET, {expiresIn: process.env.JWT_EXPIRE_IN})
+
+  return res.status(200)
+  .cookie("token", token, options)
+  .json(new ApiResponse(200, loggedinUser, "Login Successful"))
 })
 
 const logout = asyncHandler(async(req, res)=>{
-
+  return res.status(200)
+  .clearCookie("token", options)
+  .json(new ApiResponse(200, null, "Logout successfully"))
 })
 
 export{
